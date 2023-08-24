@@ -67,10 +67,11 @@ fn link_program(vs: GLuint, fs: GLuint) -> GLuint {
 
 bitflags! {
     struct Flags: u32 {
-        const CLEAR = 0x1;
-        const DRAW = 0x2;
+        const CLEAR = 1 << 0;
+        const DRAW = 1 << 1;
     }
 }
+
 
 fn run_tests(
     test_name: &str,
@@ -80,13 +81,23 @@ fn run_tests(
     warmup: usize,
     flags: Flags,
     gl_window: &glutin::GlWindow,
+    clear_scissored: bool,
+    width: u32,
+    height: u32,
 ) -> (usize, usize) {
     for &query in queries {
         unsafe {
             if flags.contains(Flags::CLEAR) {
                 gl::BeginQuery(gl::TIME_ELAPSED, query);
             }
+            if clear_scissored {
+                gl::Enable(gl::SCISSOR_TEST);
+                gl::Scissor(1, 1, (width / 2) as i32, (height / 2) as i32);
+            }
             gl::Clear(clear_mask);
+            if clear_scissored {
+                gl::Disable(gl::SCISSOR_TEST);
+            }
             if !flags.contains(Flags::CLEAR) {
                 gl::BeginQuery(gl::TIME_ELAPSED, query);
             }
@@ -133,6 +144,7 @@ struct Config {
     num_queries: usize,
     warmup_frames: usize,
     num_rejects: usize,
+    clear_scissored: bool,
 }
 
 fn main() {
@@ -140,6 +152,7 @@ fn main() {
         num_queries: 200,
         warmup_frames: 40,
         num_rejects: 20,
+        clear_scissored: false,
     };
 
     let events_loop = glutin::EventsLoop::new();
@@ -198,6 +211,9 @@ fn main() {
         config.warmup_frames,
         Flags::DRAW,
         &gl_window,
+        config.clear_scissored,
+        width,
+        height,
     );
 
     unsafe {
@@ -213,6 +229,9 @@ fn main() {
         config.warmup_frames,
         Flags::DRAW,
         &gl_window,
+        config.clear_scissored,
+        width,
+        height,
     );
 
     let (_, mp_color_clear) = run_tests(
@@ -223,6 +242,9 @@ fn main() {
         config.warmup_frames,
         Flags::CLEAR,
         &gl_window,
+        config.clear_scissored,
+        width,
+        height,
     );
 
     println!("Table entry:");
